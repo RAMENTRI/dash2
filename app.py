@@ -12,11 +12,12 @@ SCOPES = [
     "https://www.googleapis.com/auth/youtube.readonly"
 ]
 
+# --------- SETUP ---------
 CREDENTIALS_DIR = "credentials"
 os.makedirs(CREDENTIALS_DIR, exist_ok=True)
 
-st.set_page_config("📊 YouTube Video Dashboard", layout="wide")
-st.title("📊 YouTube Video-Wise Analytics")
+if "creds_saved" not in st.session_state:
+    st.session_state["creds_saved"] = False
 
 # --------- AUTH ---------
 def authenticate_and_store(account_label):
@@ -27,21 +28,22 @@ def authenticate_and_store(account_label):
     )
 
     auth_url, _ = flow.authorization_url(prompt='consent')
-
     st.markdown(f"[🔐 Click here to authenticate your YouTube account]({auth_url})")
+
     code = st.text_input("📋 Paste the authorization code here:")
 
-    if code:
+    if code and not st.session_state["creds_saved"]:
         try:
             flow.fetch_token(code=code)
             credentials = flow.credentials
-
             file_path = f"{CREDENTIALS_DIR}/{account_label}.pkl"
+
             with open(file_path, "wb") as f:
                 pickle.dump(credentials, f)
 
+            st.session_state["creds_saved"] = True
             st.success(f"✅ Credentials saved: {file_path}")
-            st.experimental_rerun()  # 🔁 Force refresh UI to show saved account
+            st.experimental_rerun()
         except Exception as e:
             st.error("❌ Authentication failed.")
             st.exception(e)
@@ -69,8 +71,6 @@ def get_video_metrics(youtube_analytics, start_date, end_date):
         maxResults=50
     )
     result = request.execute()
-    if 'rows' not in result:
-        return pd.DataFrame()
     cols = [col['name'] for col in result['columnHeaders']]
     return pd.DataFrame(result['rows'], columns=cols)
 
@@ -79,7 +79,7 @@ def get_video_titles(youtube_data, video_ids):
     for i in range(0, len(video_ids), 50):
         chunk = video_ids[i:i+50]
         response = youtube_data.videos().list(part="snippet,statistics", id=",".join(chunk)).execute()
-        for item in response.get("items", []):
+        for item in response["items"]:
             video_id = item["id"]
             title = item["snippet"]["title"]
             stats = item["statistics"]
@@ -91,33 +91,40 @@ def get_video_titles(youtube_data, video_ids):
             }
     return all_titles
 
-# --------- UI: Sidebar ---------
+# --------- UI ---------
+st.set_page_config("📊 YouTube Video Dashboard", layout="wide")
+st.title("📊 YouTube Video-Wise Analytics")
+
+# Show contents of credentials
+st.sidebar.markdown("📁 **Files in credentials folder:**")
+st.sidebar.json(os.listdir(CREDENTIALS_DIR))
+
+# Date range
+start_date = (date.today() - timedelta(days=30)).isoformat()
+end_date = date.today().isoformat()
+
+# Account selector
 st.sidebar.subheader("🎯 YouTube Accounts")
 accounts = list_saved_accounts()
-st.sidebar.write("🗂️ Saved accounts:", accounts or "None")
 
 if accounts:
-    selected_account = st.sidebar.selectbox("Select a YouTube Account", accounts)
+    st.sidebar.write("📁 Saved accounts:", accounts)
+    selected_account = st.sidebar.selectbox("Select Account", accounts)
 else:
     selected_account = None
 
 if st.sidebar.button("➕ Add New Account"):
-    st.warning("Authenticate your YouTube account below.")
     authenticate_and_store(f"account_{len(accounts)+1}")
+    st.stop()
 
-# --------- Main Dashboard ---------
-start_date = (date.today() - timedelta(days=30)).isoformat()
-end_date = date.today().isoformat()
-
+# Show analytics
 if selected_account:
     credentials = load_credentials(selected_account)
     yt_analytics = build("youtubeAnalytics", "v2", credentials=credentials)
     yt_data = build("youtube", "v3", credentials=credentials)
 
-    video_df = get_video_metrics(yt_analytics, start_date, end_date)
-    if video_df.empty:
-        st.info("⚠️ No analytics data found for the selected account.")
-    else:
+    try:
+        video_df = get_video_metrics(yt_analytics, start_date, end_date)
         video_ids = video_df['video'].tolist()
         meta = get_video_titles(yt_data, video_ids)
 
@@ -140,4 +147,8 @@ if selected_account:
 
         st.success(f"✅ Showing data for: **{selected_account}**")
         st.dataframe(video_df[ordered_cols])
-        st.download_button("📥 Download Video Report", video_df.to_csv(index=False), "video_analytics.csv")
+        st.download_button("📥 Download CSV", video_df.to_csv(index=False), "video_analytics.csv")
+
+    except Exception as e:
+        st.error("❌ Failed to fetch analytics.")
+        st.exception(e)
