@@ -27,6 +27,7 @@ def authenticate_and_store(account_label):
     )
 
     auth_url, _ = flow.authorization_url(prompt='consent')
+
     st.markdown(f"[🔐 Click here to authenticate your YouTube account]({auth_url})")
     code = st.text_input("📋 Paste the authorization code here:")
 
@@ -34,15 +35,16 @@ def authenticate_and_store(account_label):
         try:
             flow.fetch_token(code=code)
             credentials = flow.credentials
+
             file_path = f"{CREDENTIALS_DIR}/{account_label}.pkl"
             with open(file_path, "wb") as f:
                 pickle.dump(credentials, f)
-            st.success(f"✅ Credentials saved as: {file_path}")
-            st.success("✅ Authentication complete. Refresh the page to see the account.")
-            st.stop()
+
+            st.success(f"✅ Credentials saved: {file_path}")
+            st.experimental_rerun()  # 🔁 Force refresh UI to show saved account
         except Exception as e:
-            st.error(f"❌ Authentication failed: {e}")
-            st.stop()
+            st.error("❌ Authentication failed.")
+            st.exception(e)
 
 def load_credentials(account_label):
     with open(f"{CREDENTIALS_DIR}/{account_label}.pkl", "rb") as f:
