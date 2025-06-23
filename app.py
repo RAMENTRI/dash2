@@ -6,6 +6,8 @@ import os
 import pickle
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
+from google_auth_oauthlib.flow import Flow
+
 
 # --------- SCOPES ---------
 SCOPES = [
@@ -18,7 +20,12 @@ os.makedirs(CREDENTIALS_DIR, exist_ok=True)
 
 # --------- AUTH ---------
 def authenticate_and_store(account_label):
-    flow = InstalledAppFlow.from_client_secrets_file("client_secrets.json", SCOPES)
+    flow = Flow.from_client_secrets_file(
+    "client_secrets.json",
+    scopes=SCOPES,
+    redirect_uri="https://gjnm3mowwuh38xitnawc3g.streamlit.app/"
+)
+
     auth_url, _ = flow.authorization_url(prompt='consent')
 
     st.markdown(f"[🔐 Click here to authenticate your YouTube account]({auth_url})")
