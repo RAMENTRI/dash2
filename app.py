@@ -99,6 +99,7 @@ st.sidebar.subheader("🎯 YouTube Accounts")
 accounts = list_saved_accounts()
 
 if accounts:
+    st.sidebar.write("👤 Detected Accounts:", accounts)
     selected_account = st.sidebar.selectbox("Select a YouTube Account", accounts)
 else:
     selected_account = None
