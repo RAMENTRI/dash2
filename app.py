@@ -134,3 +134,4 @@ if selected_account:
     st.success(f"✅ Showing data for: **{selected_account}**")
     st.dataframe(video_df[ordered_cols])
     st.download_button("📥 Download Video Report", video_df.to_csv(index=False), "video_analytics.csv")
+st.sidebar.write("🗂️ Files in credentials folder:", os.listdir(CREDENTIALS_DIR))
