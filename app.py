@@ -18,20 +18,30 @@ os.makedirs(CREDENTIALS_DIR, exist_ok=True)
 
 # --------- AUTH ---------
 def authenticate_and_store(account_label):
-    flow = InstalledAppFlow.from_client_secrets_file("client_secrets.json", SCOPES)
-    auth_url, _ = flow.authorization_url(prompt='consent')
+    from google_auth_oauthlib.flow import Flow
 
-    st.markdown(f"[🔐 Click here to authenticate your YouTube account]({auth_url})")
-    code = st.text_input("📋 Paste the authorization code here:")
+    flow = Flow.from_client_secrets_file(
+        "client_secrets.json",
+        scopes=SCOPES,
+        redirect_uri="https://gjnm3mowwuh38xitnawc3g.streamlit.app/"
+    )
+
+    auth_url, _ = flow.authorization_url(prompt='consent', access_type='offline', include_granted_scopes='true')
+
+    st.markdown("### 🔐 Step 1: Click below to authenticate your YouTube account")
+    st.markdown(f"[🔗 Authorize via Google]({auth_url})")
+
+    code = st.text_input("📋 Step 2: Paste the authorization code here")
 
     if code:
-        flow.fetch_token(code=code)
-        credentials = flow.credentials
-        with open(f"{CREDENTIALS_DIR}/{account_label}.pkl", "wb") as f:
-            pickle.dump(credentials, f)
-        st.success("✅ Authentication complete. Refresh the page to see the account.")
-        st.stop()
-    return None
+        try:
+            flow.fetch_token(code=code)
+            credentials = flow.credentials
+            with open(f"{CREDENTIALS_DIR}/{account_label}.pkl", "wb") as f:
+                pickle.dump(credentials, f)
+            st.success("✅ Authentication successful. Refresh the app to use this account.")
+            st.stop()
+
 
 def load_credentials(account_label):
     with open(f"{CREDENTIALS_DIR}/{account_label}.pkl", "rb") as f:
