@@ -17,6 +17,7 @@ SCOPES = [
 
 CREDENTIALS_DIR = "credentials"
 os.makedirs(CREDENTIALS_DIR, exist_ok=True)
+st.sidebar.write("🗂️ Files in credentials folder:", os.listdir(CREDENTIALS_DIR))
 
 # --------- AUTH ---------
 def authenticate_and_store(account_label):
@@ -34,8 +35,10 @@ def authenticate_and_store(account_label):
     if code:
         flow.fetch_token(code=code)
         credentials = flow.credentials
-        with open(f"{CREDENTIALS_DIR}/{account_label}.pkl", "wb") as f:
+        file_path = f"{CREDENTIALS_DIR}/{account_label}.pkl"
+        with open(file_path, "wb") as f:
             pickle.dump(credentials, f)
+        st.success(f"✅ Credentials saved as: {file_path}")
         st.success("✅ Authentication complete. Refresh the page to see the account.")
         st.stop()
     return None
@@ -134,4 +137,3 @@ if selected_account:
     st.success(f"✅ Showing data for: **{selected_account}**")
     st.dataframe(video_df[ordered_cols])
     st.download_button("📥 Download Video Report", video_df.to_csv(index=False), "video_analytics.csv")
-st.sidebar.write("🗂️ Files in credentials folder:", os.listdir(CREDENTIALS_DIR))
